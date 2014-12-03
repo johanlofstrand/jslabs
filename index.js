@@ -6,22 +6,27 @@
 
 var PIXI = require('pixi.js');
 var userStorage = require('./userstorage.js');
-
 var renderer = new PIXI.CanvasRenderer(window.innerWidth, window.innerHeight);
-
 document.body.appendChild(renderer.view);
-
-var interactive = true;
 var stage = new PIXI.Stage(0x000000, true);
 
-// set the mousedown and touchstart callback..
+//Globals...
 var x,y;
+var stagetimer;
+var interactionTimeThreshold = 500;
+
 stage.mousedown = stage.touchstart = function(data){
     var localCoordsPosition = data.getLocalPosition(stage);
     x = localCoordsPosition.x;
     y = localCoordsPosition.y;
+    stagetimer = new Date().getTime();
     console.log("Mouse/touch position at x: "+x + " y: " + y);
-    addFlower();
+}
+stage.mouseup = stage.touchend = function(data){
+    var difftime = new Date().getTime() - stagetimer;
+    if (difftime < interactionTimeThreshold) { //else, see sprite interaction handling.
+        addStuff();
+    }
 }
 
 function draw() {
@@ -29,31 +34,38 @@ function draw() {
   requestAnimationFrame(draw);
 }
 
-replantFlowers();
+fetchAndDrawOldStuff();
 draw();
 
-function replantFlowers() {
-    var flowers = userStorage.retrive(); //just tries to see if there are any flowers saved...
+/*
+Get old stuff from local storage and display it
+*/
+function fetchAndDrawOldStuff() {
+    var Stuffs = userStorage.retrive(); //just tries to see if there are any Stuffs saved...
     var i, sprite,spriteTexture;
-    if (flowers!=null) {
-        for (i=0;i<flowers.length;i++) {
-            var xx = flowers[i].x;
-            var yy = flowers[i].y;
+    if (Stuffs!=null) {
+        for (i=0;i<Stuffs.length;i++) {
+            var xx = Stuffs[i].x;
+            var yy = Stuffs[i].y;
             spriteTexture = PIXI.Texture.fromImage('boli.svg');
             sprite = new PIXI.Sprite(spriteTexture);
             sprite.position.x = xx;
             sprite.position.y = yy;
             addSpriteInteraction(sprite);
+            console.log("Add old Stuff at: " + xx + " " + yy)
             stage.addChild(sprite);
         }
     }
 }
-        
-function addFlower() {  
+
+/*
+Add new stuff and store in local storage
+*/        
+function addStuff() {  
     spriteTexture = PIXI.Texture.fromImage('boli.svg');
     sprite = new PIXI.Sprite(spriteTexture);
-    var imgx = x - sprite.width / 2;
-    var imgy = y - sprite.height /2;
+    var imgx = Math.round(x - sprite.width / 2); 
+    var imgy = Math.round(y - sprite.height /2);
     sprite.position.x = imgx;
     sprite.position.y = imgy;
     addSpriteInteraction(sprite);
@@ -62,17 +74,37 @@ function addFlower() {
     draw();    
 };   
 
+/*
+Handles sprite interaction
+*/
 function addSpriteInteraction(sprite) {
 
     sprite.interactive = true;
-
-    // set the mousedown and touchstart callback..
+    sprite.timer;
     sprite.mousedown = sprite.touchstart = function(data){
-        
-        // this line will get the mouse coords relative to the sprites..
-        var localCoordsPosition = data.getLocalPosition(sprite);
-        console.log("Sprite position at x: "+localCoordsPosition.x + " y: " + localCoordsPosition.y);
+        console.log("-------------------Start------------------------------" + data);
+        sprite.timer = new Date().getTime();
+        console.log(sprite.timer);
+    }
+    sprite.mouseup = sprite.touchend = function(data){
+        console.log("---------------------End---------------------------");
         var parentCoordsPosition = data.getLocalPosition(sprite.parent);
         console.log("Sprite position at x: "+parentCoordsPosition.x + " y: " + parentCoordsPosition.y);
+        var bounds =  sprite.getBounds();
+        console.log(bounds.x);
+        var difftime = new Date().getTime() - sprite.timer;
+        console.log(difftime);
+        if (difftime >= interactionTimeThreshold) {
+            console.log("remove sprite");
+            stage.removeChild(sprite);
+            
+        }
     }
+      /*sprite.click = sprite.tap = function(data){
+        console.log("---------------------Click/Tap---------------------------");
+        var parentCoordsPosition = data.getLocalPosition(sprite.parent);
+        console.log("Sprite position at x: "+parentCoordsPosition.x + " y: " + parentCoordsPosition.y);
+        var bounds =  sprite.getBounds();
+        console.log(bounds.x);
+    }*/
 }
